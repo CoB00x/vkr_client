@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
 import 'login_screen.dart';
+import 'register_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,17 +17,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ApiService _apiService = ApiService();
   User? _user;
   bool _isLoading = true;
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final isAuth = await _authService.isAuthenticated();
+    setState(() {
+      _isAuthenticated = isAuth;
+    });
+    if (isAuth) {
+      await _loadUserData();
+    } else {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadUserData() async {
-    // Здесь должна быть загрузка данных пользователя с сервера
-    // Для примера используем заглушку
     await Future.delayed(const Duration(milliseconds: 500));
+    // Здесь должна быть загрузка данных с сервера
     setState(() {
       _user = User(
         id: 1,
@@ -55,11 +67,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirm == true) {
       await _authService.logout();
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
-        );
+        setState(() {
+          _isAuthenticated = false;
+          _user = null;
+        });
       }
     }
   }
@@ -69,18 +80,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Профиль'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : !_isAuthenticated
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.person_outline, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Вы не авторизованы',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Войдите в аккаунт, чтобы видеть информацию о себе',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+                if (result == true) {
+                  _checkAuth();
+                }
+              },
+              child: const Text('Войти'),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                );
+                if (result == true) {
+                  _checkAuth();
+                }
+              },
+              child: const Text('Зарегистрироваться'),
+            ),
+          ],
+        ),
+      )
           : _user == null
           ? const Center(child: Text('Не удалось загрузить данные профиля'))
           : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Аватар
             Container(
               width: 100,
               height: 100,
@@ -96,8 +149,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(color: Colors.grey[600]),
             ),
             const SizedBox(height: 32),
-
-            // Информация
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -112,8 +163,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 32),
-
-            // Кнопки
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(

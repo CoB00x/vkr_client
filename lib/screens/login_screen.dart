@@ -25,10 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DoctorsScreen()),
-      );
+      Navigator.pop(context, true);  // ← ЭТА СТРОКА ВАЖНА!
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Неверный email или пароль')),
