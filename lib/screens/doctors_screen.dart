@@ -14,6 +14,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
   final ApiService _apiService = ApiService();
   List<Doctor> _doctors = [];
   bool _isLoading = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -29,41 +30,47 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     });
   }
 
+  List<Doctor> get _filteredDoctors {
+    if (_searchQuery.isEmpty) return _doctors;
+    return _doctors.where((doctor) {
+      return doctor.fullName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          doctor.specialization.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Врачи'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () => Navigator.pushNamed(context, '/profile'),
+        title: const Text('Наши врачи'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Поиск по имени или специальности...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
           ),
-        ],
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _doctors.isEmpty
+          : _filteredDoctors.isEmpty
           ? const Center(child: Text('Врачи не найдены'))
           : ListView.builder(
-        itemCount: _doctors.length,
+        itemCount: _filteredDoctors.length,
         itemBuilder: (context, index) {
-          return DoctorCard(doctor: _doctors[index]);
-        },
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Врачи'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Записи'),
-          BottomNavigationBarItem(icon: Icon(Icons.medical_services), label: 'Услуги'),
-        ],
-        onTap: (index) {
-          if (index == 1) {
-            Navigator.pushNamed(context, '/appointments');
-          } else if (index == 2) {
-            Navigator.pushNamed(context, '/services');
-          }
+          return DoctorCard(doctor: _filteredDoctors[index]);
         },
       ),
     );

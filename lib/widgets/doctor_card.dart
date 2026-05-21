@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/doctor.dart';
+import '../screens/booking_screen.dart';
 
 class DoctorCard extends StatelessWidget {
   final Doctor doctor;
@@ -18,11 +19,17 @@ class DoctorCard extends StatelessWidget {
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: onTap ?? () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Запись к ${doctor.fullName} будет доступна в следующей версии')),
-          );
-        },
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BookingScreen(
+                  doctorId: doctor.id,
+                  doctorName: doctor.fullName,
+                ),
+              ),
+            );
+          },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),

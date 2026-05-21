@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../models/appointment.dart';
 import '../widgets/appointment_card.dart';
+import 'login_screen.dart';
 import 'package:intl/intl.dart';
 
 class AppointmentsScreen extends StatefulWidget {
@@ -13,14 +15,28 @@ class AppointmentsScreen extends StatefulWidget {
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   final ApiService _apiService = ApiService();
+  final AuthService _authService = AuthService();
   List<Appointment> _appointments = [];
   bool _isLoading = true;
   bool _showFuture = true;
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
     super.initState();
-    _loadAppointments();
+    _checkAuthAndLoad();
+  }
+
+  Future<void> _checkAuthAndLoad() async {
+    final isAuth = await _authService.isAuthenticated();
+    setState(() {
+      _isAuthenticated = isAuth;
+    });
+    if (isAuth) {
+      await _loadAppointments();
+    } else {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadAppointments() async {
@@ -36,7 +52,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Отменить запись'),
-        content: Text('Вы уверены, что хотите отменить запись к врачу на ${DateFormat('dd.MM.yyyy HH:mm').format(appointment.appointmentTime)}?'),
+        content: Text('Вы уверены, что хотите отменить запись на ${DateFormat('dd.MM.yyyy HH:mm').format(appointment.appointmentTime)}?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Нет')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Да')),
@@ -54,7 +70,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     }
   }
 
-  List<Appointment> _getFilteredAppointments() {
+  List<Appointment> get _filteredAppointments {
     final now = DateTime.now();
     return _appointments.where((a) {
       return _showFuture ? a.appointmentTime.isAfter(now) : a.appointmentTime.isBefore(now);
@@ -63,7 +79,40 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _getFilteredAppointments();
+    if (!_isAuthenticated) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Мои записи')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'Чтобы просматривать записи,\nнеобходимо войти в аккаунт',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                  if (result == true) {
+                    _checkAuthAndLoad();
+                  }
+                },
+                child: const Text('Войти в аккаунт'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final filtered = _filteredAppointments;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +133,24 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : filtered.isEmpty
-          ? Center(child: Text(_showFuture ? 'Нет будущих записей' : 'Нет прошедших записей'))
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              _showFuture ? 'Нет будущих записей' : 'Нет прошедших записей',
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Перейдите во вкладку "Врачи", чтобы записаться на приём',
+              style: TextStyle(color: Colors.grey[500], fontSize: 14),
+            ),
+          ],
+        ),
+      )
           : ListView.builder(
         itemCount: filtered.length,
         itemBuilder: (context, index) {
